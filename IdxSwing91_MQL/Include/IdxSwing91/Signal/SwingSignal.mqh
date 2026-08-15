@@ -32,9 +32,10 @@ public:
       m_logger = logger;
 
       m_hEMA = iMA(symbol, tf, emaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-      m_hSMA = iMA(symbol, tf, smaPeriod, 0, MODE_SMA, PRICE_CLOSE);
+      // SMA21 filter disabled - trigger now uses EMA9 cross only. Kept commented for easy re-enable.
+      // m_hSMA = iMA(symbol, tf, smaPeriod, 0, MODE_SMA, PRICE_CLOSE);
 
-      if(m_hEMA == INVALID_HANDLE || m_hSMA == INVALID_HANDLE)
+      if(m_hEMA == INVALID_HANDLE /* || m_hSMA == INVALID_HANDLE */)
         {
          if(m_logger != NULL)
             m_logger.Log(LOG_ERROR, "CSwingSignal::Init - failed to create EMA/SMA indicator handle(s)");
@@ -47,10 +48,10 @@ public:
      {
       if(m_hEMA != INVALID_HANDLE)
          IndicatorRelease(m_hEMA);
-      if(m_hSMA != INVALID_HANDLE)
-         IndicatorRelease(m_hSMA);
+      // if(m_hSMA != INVALID_HANDLE)
+      //    IndicatorRelease(m_hSMA);
       m_hEMA = INVALID_HANDLE;
-      m_hSMA = INVALID_HANDLE;
+      // m_hSMA = INVALID_HANDLE;
      }
 
    //--- evaluates the bar that just closed (shift 1) against the one before it (shift 2)
@@ -59,13 +60,13 @@ public:
      {
       dir = TRIGGER_NONE;
 
-      double ema[], sma[], close[];
+      double ema[], /* sma[], */ close[];
       double high[], low[];
 
       if(CopyBuffer(m_hEMA, 0, 1, 2, ema) != 2)
          return false;
-      if(CopyBuffer(m_hSMA, 0, 1, 2, sma) != 2)
-         return false;
+      // if(CopyBuffer(m_hSMA, 0, 1, 2, sma) != 2)
+      //    return false;
       if(CopyClose(m_symbol, m_tf, 1, 2, close) != 2)
          return false;
       if(CopyHigh(m_symbol, m_tf, 1, 1, high) != 1)
@@ -77,14 +78,14 @@ public:
       // index 1 = shift 2 (one before it) when using this (start,count) form.
       const double emaPrev = ema[1];
       const double emaLast = ema[0];
-      const double smaLast = sma[0];
+      // const double smaLast = sma[0];
       const double closePrev = close[1];
       const double closeLast = close[0];
 
       const bool crossedUp   = (closePrev <= emaPrev) && (closeLast > emaLast);
       const bool crossedDown = (closePrev >= emaPrev) && (closeLast < emaLast);
 
-      if(crossedUp && smaLast > closeLast)
+      if(crossedUp /* && smaLast > closeLast */)
         {
          dir             = TRIGGER_BUY;
          levelPrice      = high[0];
@@ -93,7 +94,7 @@ public:
          return true;
         }
 
-      if(crossedDown && smaLast < closeLast)
+      if(crossedDown /* && smaLast < closeLast */)
         {
          dir             = TRIGGER_SELL;
          levelPrice      = low[0];

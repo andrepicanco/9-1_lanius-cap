@@ -1,0 +1,37 @@
+# Global defaults - equivalent to the Inp* inputs of IdxSwing91.mq5.
+# Per-symbol overrides live in symbols.yaml (any field listed here can be overridden
+# there, since SL buffer points / trading hours vary a lot between an index and a stock).
+
+timeframe: "M15"
+
+# Strategy
+ema_period: 9
+trigger_valid_bars: 3
+
+# Stop Loss / Take Profit
+sl_buffer_points: 30
+tp_r_multiple: 2.0
+
+# Trailing (ATR) - off by default, same as the EA
+use_trailing: false
+atr_period: 14
+atr_multiplier: 2.0
+
+# Position sizing
+use_fixed_lot: false
+fixed_lot: 0.10
+risk_percent: 1.0
+
+# Trade management
+magic_number: 910091
+trade_comment: "IdxSwing91"
+slippage_points: 10
+
+# Optional filters (off by default)
+max_spread_points: 0
+use_trading_hours_filter: false
+start_hour: 0
+end_hour: 23
+
+# Diagnostics
+log_level: "INFO"

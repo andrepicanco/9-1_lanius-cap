@@ -1,0 +1,22 @@
+# List of symbols to run (backtest batch or live) and per-symbol overrides on top of
+# default.yaml. Use the exact symbol name as it appears in your broker's MarketWatch.
+# Edit this list for your ~13 target instruments (international indices + Bovespa).
+
+symbols:
+  - US500
+  - GER40
+  - PETR4
+  - WIN$
+
+overrides:
+  US500:
+    sl_buffer_points: 50
+
+  GER40:
+    sl_buffer_points: 80
+
+  PETR4:
+    sl_buffer_points: 10
+    use_trading_hours_filter: true
+    start_hour: 10
+    end_hour: 17
