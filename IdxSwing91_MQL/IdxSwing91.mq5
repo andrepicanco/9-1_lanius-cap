@@ -27,6 +27,11 @@ input int              InpEMAPeriod        = 9;
 input int              InpSMAPeriod        = 21;
 input int              InpTriggerValidBars = 3;
 
+//--- RSI confirmation
+input int              InpRSIPeriod        = 3;
+input double           InpRSIBuyLevel      = 70.0;
+input double           InpRSISellLevel     = 30.0;
+
 //--- Stop Loss / Take Profit
 input int              InpSLBufferPoints   = 30;
 input double           InpTP_RMultiple     = 2.0;
@@ -82,6 +87,16 @@ bool ValidateInputs(void)
       g_logger.Log(LOG_ERROR, "ValidateInputs: InpTriggerValidBars must be > 0");
       return false;
      }
+   if(InpRSIPeriod <= 0)
+     {
+      g_logger.Log(LOG_ERROR, "ValidateInputs: InpRSIPeriod must be > 0");
+      return false;
+     }
+   if(InpRSIBuyLevel <= InpRSISellLevel || InpRSIBuyLevel > 100.0 || InpRSISellLevel < 0.0)
+     {
+      g_logger.Log(LOG_ERROR, "ValidateInputs: InpRSIBuyLevel/InpRSISellLevel must be in [0,100] with Buy > Sell");
+      return false;
+     }
    if(InpTP_RMultiple <= 0.0)
      {
       g_logger.Log(LOG_ERROR, "ValidateInputs: InpTP_RMultiple must be > 0");
@@ -115,7 +130,7 @@ int OnInit(void)
 
    g_workTF = (InpTimeframe == PERIOD_CURRENT) ? _Period : InpTimeframe;
 
-   if(!g_signal.Init(_Symbol, g_workTF, InpEMAPeriod, InpSMAPeriod, GetPointer(g_logger)))
+   if(!g_signal.Init(_Symbol, g_workTF, InpEMAPeriod, InpSMAPeriod, InpRSIPeriod, InpRSIBuyLevel, InpRSISellLevel, GetPointer(g_logger)))
       return INIT_FAILED;
 
    if(InpUseTrailing)
@@ -136,8 +151,9 @@ int OnInit(void)
    g_pendingTicket   = 0;
    g_barsSincePlaced = 0;
 
-   g_logger.Log(LOG_INFO, StringFormat("OnInit: ready. TF=%s EMA=%d SMA=%d TriggerValidBars=%d",
-                                        EnumToString(g_workTF), InpEMAPeriod, InpSMAPeriod, InpTriggerValidBars));
+   g_logger.Log(LOG_INFO, StringFormat("OnInit: ready. TF=%s EMA=%d SMA=%d TriggerValidBars=%d RSI=%d BuyLvl=%.1f SellLvl=%.1f",
+                                        EnumToString(g_workTF), InpEMAPeriod, InpSMAPeriod, InpTriggerValidBars,
+                                        InpRSIPeriod, InpRSIBuyLevel, InpRSISellLevel));
    return INIT_SUCCEEDED;
   }
 
