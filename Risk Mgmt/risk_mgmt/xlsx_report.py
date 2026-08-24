@@ -98,6 +98,6 @@ def _write_by_asset_table(ws, row: int, asset_stats: list[AssetMonthStats], summ
                 asset = by_key.get((summary.month, symbol))
                 ws.cell(row=row, column=col, value=getter(asset) if asset is not None else None)
             row += 1
-        row += 1  # blank separator before the next month's block
+        # row += 1  # blank separator before the next month's block
 
     return row

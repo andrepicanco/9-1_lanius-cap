@@ -48,6 +48,24 @@ def plot_correlation_heatmap(result: CorrelationResult, output_path: str | Path)
     return output_path
 
 
+def plot_pc1_chart(quarterly_pc1: list[tuple[str, float | None]], output_path: str | Path) -> Path:
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    quarters = [q for q, _ in quarterly_pc1]
+    values = [v * 100 if v is not None else float("nan") for _, v in quarterly_pc1]
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.plot(quarters, values, marker="o", linewidth=2)
+    ax.set_ylabel("PC1 explained variance (%)")
+    ax.set_title("Basket concentration (PCA, correlation matrix)")
+    ax.set_ylim(bottom=0)
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+    return output_path
+
+
 def _render_table(headers: list[str], rows: list[list[str]]) -> str:
     """Fixed-width table: first column left-aligned (it's always a label), the rest
     right-aligned (they're always numbers/short codes) - readable once wrapped in a
@@ -116,6 +134,7 @@ def build_message_text(
     overall: OverallSummary | None = None,
     asset_stats: list[AssetMonthStats] | None = None,
     month_summaries_list: list[MonthSummary] | None = None,
+    quarterly_pc1: list[tuple[str, float | None]] | None = None,
 ) -> str:
     lines = ["*IdxSwing91 Risk Report*", ""]
 
@@ -153,5 +172,18 @@ def build_message_text(
         for pair in corr_result.top_pairs:
             delta_str = f"{pair.delta:+.2f}" if pair.delta == pair.delta else "n/a"  # NaN check
             lines.append(f"  {pair.symbol_a}/{pair.symbol_b}: {pair.rolling_corr:+.2f} (Δ vs baseline: {delta_str})")
+
+    if corr_result is not None and corr_result.bottom_pairs:
+        lines.append("")
+        lines.append("Top uncorrelated pairs (risk-reducing, rolling window):")
+        for pair in corr_result.bottom_pairs:
+            delta_str = f"{pair.delta:+.2f}" if pair.delta == pair.delta else "n/a"  # NaN check
+            lines.append(f"  {pair.symbol_a}/{pair.symbol_b}: {pair.rolling_corr:+.2f} (Δ vs baseline: {delta_str})")
+
+    if quarterly_pc1:
+        latest_quarter, latest_value = quarterly_pc1[-1]
+        value_str = f"{latest_value:.1%}" if latest_value is not None else "n/a"
+        lines.append("")
+        lines.append(f"PC1 concentration ({latest_quarter}): {value_str} of variance explained (see chart)")
 
     return "\n".join(lines)
