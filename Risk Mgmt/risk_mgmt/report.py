@@ -9,6 +9,7 @@ matplotlib.use("Agg")  # headless - this runs in a cron job / CI, never with a d
 import matplotlib.pyplot as plt
 
 from .correlation import CorrelationResult
+from .monthly import AssetMonthStats, MonthSummary, OverallSummary
 from .var import VarResult
 
 
@@ -47,12 +48,74 @@ def plot_correlation_heatmap(result: CorrelationResult, output_path: str | Path)
     return output_path
 
 
+def _render_table(headers: list[str], rows: list[list[str]]) -> str:
+    """Fixed-width table: first column left-aligned (it's always a label), the rest
+    right-aligned (they're always numbers/short codes) - readable once wrapped in a
+    Markdown code block, which is what makes the alignment actually render monospaced
+    in Telegram instead of collapsing like normal message text does."""
+    all_rows = [headers] + rows
+    widths = [max(len(str(r[i])) for r in all_rows) for i in range(len(headers))]
+
+    lines = []
+    for r in all_rows:
+        cells = [
+            str(r[i]).ljust(widths[i]) if i == 0 else str(r[i]).rjust(widths[i])
+            for i in range(len(r))
+        ]
+        lines.append("  ".join(cells))
+    return "\n".join(lines)
+
+
+def _code_block(text: str) -> str:
+    return f"```\n{text}\n```"
+
+
+_SUMMARY_METRICS = [
+    ("Trades", lambda s: str(s.trades)),
+    ("Win rate", lambda s: f"{s.win_rate:.1%}"),
+    ("Total P/L", lambda s: f"{s.total_pnl:,.2f}"),
+    ("Avg P/L/trade", lambda s: f"{s.avg_pnl:,.2f}"),
+    ("Best trade", lambda s: f"{s.best_trade:,.2f}"),
+    ("Worst trade", lambda s: f"{s.worst_trade:,.2f}"),
+    ("Max drawdown", lambda s: f"{s.max_drawdown:,.2f}"),
+]
+
+
+def _monthly_summary_table(summaries: list[MonthSummary], confidence: float) -> str:
+    headers = ["Metric"] + [s.month for s in summaries]
+    rows = [[label] + [getter(s) for s in summaries] for label, getter in _SUMMARY_METRICS]
+    var_row = [f"VaR ({confidence:.0%})"] + [
+        f"{s.var_month:,.2f}" if s.var_month is not None else "n/a" for s in summaries
+    ]
+    rows.append(var_row)
+    return _render_table(headers, rows)
+
+
+def _by_asset_table_for_month(month: str, asset_stats: list[AssetMonthStats], symbols: list[str]) -> str:
+    by_symbol = {a.symbol: a for a in asset_stats if a.month == month}
+    headers = ["Metric"] + symbols
+
+    def cell(symbol: str, attr: str, fmt) -> str:
+        asset = by_symbol.get(symbol)
+        return fmt(getattr(asset, attr)) if asset is not None else "-"
+
+    rows = [
+        ["Trades"] + [cell(s, "trades", str) for s in symbols],
+        ["P/L ($)"] + [cell(s, "pnl", lambda v: f"{v:,.2f}") for s in symbols],
+        ["Avg P/L ($)"] + [cell(s, "avg_pnl", lambda v: f"{v:,.2f}") for s in symbols],
+    ]
+    return _render_table(headers, rows)
+
+
 def build_message_text(
     var_result: VarResult,
     corr_result: CorrelationResult | None,
     confidence: float,
     window_days: int,
     baseline_days: int,
+    overall: OverallSummary | None = None,
+    asset_stats: list[AssetMonthStats] | None = None,
+    month_summaries_list: list[MonthSummary] | None = None,
 ) -> str:
     lines = ["*IdxSwing91 Risk Report*", ""]
 
@@ -60,6 +123,29 @@ def build_message_text(
     baseline = var_result.latest_baseline
     lines.append(f"VaR ({confidence:.0%}, {window_days}d): " + (f"${short:,.2f}" if short is not None else "n/a - not enough history"))
     lines.append(f"VaR baseline ({confidence:.0%}, {baseline_days}d): " + (f"${baseline:,.2f}" if baseline is not None else "n/a - not enough history"))
+
+    if overall is not None:
+        lines.append("")
+        lines.append("*Overall*")
+        lines.append(f"Period: {overall.date_from} to {overall.date_to}")
+        lines.append(
+            f"Trades: {overall.trades} | Win rate: {overall.win_rate:.0%} | "
+            f"Total P/L: ${overall.total_pnl:,.2f} | Avg P/L/trade: ${overall.avg_pnl:,.2f}"
+        )
+
+    if month_summaries_list:
+        asset_stats = asset_stats or []
+        symbols = sorted({a.symbol for a in asset_stats})
+
+        lines.append("")
+        lines.append("*Monthly Summary*")
+        lines.append(_code_block(_monthly_summary_table(month_summaries_list, confidence)))
+
+        lines.append("")
+        lines.append("*By Asset*")
+        for month_summary in month_summaries_list:
+            lines.append(month_summary.month)
+            lines.append(_code_block(_by_asset_table_for_month(month_summary.month, asset_stats, symbols)))
 
     if corr_result is not None and corr_result.top_pairs:
         lines.append("")

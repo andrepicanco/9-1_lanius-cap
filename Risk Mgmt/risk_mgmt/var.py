@@ -76,6 +76,19 @@ def rolling_parametric_var(daily_pnl: pd.Series, window_days: int, confidence: f
     return var.clip(lower=0.0)
 
 
+def parametric_var_of_series(pnl: pd.Series, confidence: float) -> float | None:
+    """Same formula as rolling_parametric_var, but over the whole given series at once
+    rather than a trailing window - used for a fixed period (e.g. "VaR for March") where
+    there's no meaningful "trailing window ending at t" to speak of. None if fewer than
+    2 points, since sample std is undefined for n<2.
+    """
+    if len(pnl) < 2:
+        return None
+    z = _z_score(confidence)
+    var = -(pnl.mean() - z * pnl.std(ddof=1))
+    return max(var, 0.0)
+
+
 @dataclass
 class VarResult:
     daily_pnl: pd.Series

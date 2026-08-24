@@ -16,11 +16,13 @@ from .config_io import load_default_config, load_symbols_file
 from .correlation import compute_correlation
 from .logsource.idxswing91_csv import IdxSwing91CsvSource
 from .logsource.mql5_journal import MQL5JournalSource
+from .monthly import asset_month_stats, month_summaries, overall_summary
 from .pricesource.csv_price_history import CsvPriceSource
 from .pricesource.mt5_price_history import Mt5PriceSource
 from .report import build_message_text, plot_correlation_heatmap, plot_var_chart
 from .telegram import send_message, send_photo
 from .var import compute_var
+from .xlsx_report import write_monthly_workbook
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -93,6 +95,14 @@ def main(argv: list[str] | None = None) -> None:
     var_result = compute_var(trades, cfg.var_window_days, cfg.var_baseline_days, cfg.var_confidence)
     var_chart_path = plot_var_chart(var_result, cfg.var_window_days, cfg.var_baseline_days, output_dir / "var.png")
 
+    overall = overall_summary(trades)
+    asset_stats = asset_month_stats(trades)
+    monthly = month_summaries(trades, var_result.daily_pnl, cfg.var_confidence)
+
+    xlsx_path = None
+    if monthly:
+        xlsx_path = write_monthly_workbook(asset_stats, monthly, cfg.var_confidence, output_dir / "monthly_report.xlsx")
+
     corr_result = None
     corr_chart_path = None
     if not args.skip_correlation and symbols:
@@ -101,13 +111,18 @@ def main(argv: list[str] | None = None) -> None:
             corr_result = compute_correlation(closes, cfg.corr_window_days, cfg.top_n_pairs)
             corr_chart_path = plot_correlation_heatmap(corr_result, output_dir / "correlation.png")
 
-    message = build_message_text(var_result, corr_result, cfg.var_confidence, cfg.var_window_days, cfg.var_baseline_days)
+    message = build_message_text(
+        var_result, corr_result, cfg.var_confidence, cfg.var_window_days, cfg.var_baseline_days,
+        overall=overall, asset_stats=asset_stats, month_summaries_list=monthly,
+    )
 
     if args.dry_run:
         print(message)
         print(f"\nVaR chart: {var_chart_path}")
         if corr_chart_path:
             print(f"Correlation chart: {corr_chart_path}")
+        if xlsx_path:
+            print(f"Monthly report: {xlsx_path}")
         return
 
     send_message(message)

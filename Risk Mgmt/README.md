@@ -33,8 +33,17 @@ manually. `--mode local` needs none of that.
    (`corr_window_days`, default 20) plus the top-N pairs correlating most strongly right
    now, each compared against its full-history baseline so a real regime shift is
    distinguishable from "these two always move together."
-3. **Report.** A VaR chart, a correlation heatmap, and a short text summary - sent to
-   Telegram, or printed to stdout with `--dry-run`.
+3. **Trade results.** An overall period summary (trades, win rate, total P/L, avg
+   P/L/trade) plus a monthly breakdown - per-asset P/L/trades/avg, followed by a
+   risk-oriented monthly summary (trades, win rate, total P/L, avg P/L/trade, best/worst
+   trade, max drawdown within the month, and parametric VaR for that month specifically -
+   not the rolling windows from point 1). Both the Telegram text and a printable
+   `monthly_report.xlsx` (stacked per-month blocks, `risk_mgmt/xlsx_report.py`) get the
+   same numbers.
+4. **Report.** A VaR chart, a correlation heatmap, the text summary above (chunked
+   automatically if it exceeds Telegram's ~4096-character message cap), and the xlsx -
+   sent to Telegram (except the xlsx, which stays local for now), or printed/logged to
+   stdout with `--dry-run`.
 
 ## Modes and sources
 

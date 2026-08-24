@@ -4,6 +4,7 @@ PyYAML>=6.0
 matplotlib>=3.8
 requests>=2.31
 pytest>=7.4
+openpyxl>=3.1
 
 # Only needed for --mode live / --price-source mt5 - the MetaTrader5 package only
 # installs and works on Windows, against an already-open desktop terminal. Not needed
