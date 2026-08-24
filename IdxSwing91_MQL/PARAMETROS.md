@@ -10,15 +10,18 @@ Este documento explica cada parâmetro editável (`input`) do EA `IdxSwing91.mq5
 
 Define em qual timeframe o EA calcula EMA(9), SMA(21) e detecta barras novas — **não precisa ser o mesmo timeframe do gráfico visível**. Com `PERIOD_CURRENT`, o EA usa o período do próprio gráfico onde está anexado. Se você quiser, por exemplo, ver a execução em modo visual num gráfico M15 mas operar a estratégia em H4, basta selecionar `PERIOD_H4` aqui — o EA ignora o período do gráfico e passa a trabalhar só com barras H4.
 
-## Estratégia (EMA9 / SMA21)
+## Estratégia (EMA9 / SMA21 / RSI)
 
 | Parâmetro | Tipo | Padrão | O que faz |
 |---|---|---|---|
 | `InpEMAPeriod` | `int` | `9` | Período da média móvel exponencial usada como gatilho de entrada (cruzamento). |
-| `InpSMAPeriod` | `int` | `21` | Período da média móvel simples usada como filtro de regime (compra só se o preço estiver abaixo dela; venda só se estiver acima). |
+| `InpSMAPeriod` | `int` | `21` | Período da média móvel simples originalmente pensada como filtro de regime. **Atualmente sem efeito** — o filtro está comentado no código (`SwingSignal.mqh`), mantido só para religar facilmente no futuro. |
 | `InpTriggerValidBars` | `int` | `3` | Quantas barras a ordem pendente (Buy Stop/Sell Stop) fica ativa depois que o gatilho dispara. Se o preço não romper o nível da barra de gatilho dentro desse prazo, a ordem é cancelada automaticamente. |
+| `InpRSIPeriod` | `int` | `3` | Período do RSI usado para confirmar o gatilho de cruzamento da EMA. |
+| `InpRSIBuyLevel` | `double` | `70.0` | Nível mínimo de RSI (na barra de gatilho) para confirmar um sinal de **compra**. Precisa ser maior que `InpRSISellLevel`. |
+| `InpRSISellLevel` | `double` | `30.0` | Nível máximo de RSI (na barra de gatilho) para confirmar um sinal de **venda**. Precisa ser menor que `InpRSIBuyLevel`. |
 
-Lembrete da lógica (para não confundir com um cruzamento simples de médias): o gatilho de **compra** exige SMA21 acima do preço (contexto de baixa) *e* o fechamento cruzando para cima da EMA9 — é um repique, não uma entrada a favor de tendência. O de **venda** é o espelho. Aumentar `InpTriggerValidBars` deixa o sistema mais tolerante a atrasos no rompimento; diminuir deixa mais seletivo (só entra se o rompimento for quase imediato).
+Lógica atual do gatilho: a cada barra fechada, o EA compara o fechamento da barra atual e da anterior contra a EMA(`InpEMAPeriod`) calculada em cada uma delas. Um cruzamento para cima (`crossedUp`) só vira sinal de **compra** se o RSI da barra de gatilho estiver **acima** de `InpRSIBuyLevel`; um cruzamento para baixo (`crossedDown`) só vira sinal de **venda** se o RSI estiver **abaixo** de `InpRSISellLevel`. Ou seja, o RSI funciona como confirmação de momentum — não basta cruzar a EMA, o RSI precisa já estar esticado na direção do sinal. Com os padrões (`RSI(3)`, 70/30), isso torna o filtro relativamente exigente: espere menos sinais do que só com o cruzamento da EMA. O filtro de SMA21 mencionado no cabeçalho da seção está desligado no código atual (ver nota acima) — o gatilho de hoje é EMA + RSI, não EMA + SMA. Aumentar `InpTriggerValidBars` deixa o sistema mais tolerante a atrasos no rompimento; diminuir deixa mais seletivo (só entra se o rompimento for quase imediato).
 
 ## Stop Loss / Take Profit
 

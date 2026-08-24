@@ -1,0 +1,43 @@
+# Runs the IdxSwing91 live risk report (parametric VaR + basket correlation, from the
+# current MT5 account state) on a schedule and sends it to Telegram.
+#
+# Requires a SELF-HOSTED runner: the `MetaTrader5` Python package only talks to an
+# already-open, already-logged-in desktop MT5 terminal on the same machine - a normal
+# GitHub-hosted (Linux) runner has no way to reach one. Register your own Windows
+# machine (MT5 open, logged in) as a self-hosted runner for this repo before enabling
+# the schedule below: Settings -> Actions -> Runners -> New self-hosted runner.
+#
+# Secrets required (Settings -> Secrets and variables -> Actions):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+# Optional (only if the runner's MT5 terminal isn't already logged in):
+#   MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
+
+name: IdxSwing91 live risk report
+
+on:
+  schedule:
+    - cron: "0 22 * * 1-5"  # 22:00 UTC, weekdays - adjust to your own schedule
+  workflow_dispatch: {}      # lets you trigger a run manually from the Actions tab
+
+jobs:
+  risk-report:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: Risk Mgmt
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      MT5_LOGIN: ${{ secrets.MT5_LOGIN }}
+      MT5_PASSWORD: ${{ secrets.MT5_PASSWORD }}
+      MT5_SERVER: ${{ secrets.MT5_SERVER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install MetaTrader5
+
+      - name: Run live risk report
+        run: python scripts/run_risk_report.py --mode live
