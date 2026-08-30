@@ -93,9 +93,11 @@ _SUMMARY_METRICS = [
     ("Win rate", lambda s: f"{s.win_rate:.1%}"),
     ("Total P/L", lambda s: f"{s.total_pnl:,.2f}"),
     ("Avg P/L/trade", lambda s: f"{s.avg_pnl:,.2f}"),
+    ("P/L Std Dev", lambda s: f"{s.pnl_stdev:,.2f}" if s.pnl_stdev is not None else "n/a"),
     ("Best trade", lambda s: f"{s.best_trade:,.2f}"),
     ("Worst trade", lambda s: f"{s.worst_trade:,.2f}"),
     ("Max drawdown", lambda s: f"{s.max_drawdown:,.2f}"),
+    ("Avg risk at entry", lambda s: f"{s.avg_risk_money:,.2f}" if s.avg_risk_money is not None else "n/a"),
 ]
 
 

@@ -32,9 +32,11 @@ class MonthSummary:
     win_rate: float
     total_pnl: float
     avg_pnl: float
+    pnl_stdev: float | None
     best_trade: float
     worst_trade: float
     max_drawdown: float
+    avg_risk_money: float | None
     var_month: float | None
 
 
@@ -98,6 +100,12 @@ def month_summaries(trades: list[Trade], daily_pnl: pd.Series, confidence: float
         pnls = [t.pnl_money for t in month_trades]
         wins = [p for p in pnls if p > 0]
 
+        # Sample stdev is undefined for n<2, same convention as parametric_var_of_series.
+        pnl_stdev = float(pd.Series(pnls).std(ddof=1)) if len(pnls) >= 2 else None
+
+        risks = [t.risk_money for t in month_trades if t.risk_money is not None]
+        avg_risk_money = sum(risks) / len(risks) if risks else None
+
         var_month = None
         if not daily_pnl.empty:
             month_period = pd.Period(month, freq="M")
@@ -111,13 +119,34 @@ def month_summaries(trades: list[Trade], daily_pnl: pd.Series, confidence: float
                 win_rate=len(wins) / len(month_trades),
                 total_pnl=sum(pnls),
                 avg_pnl=sum(pnls) / len(month_trades),
+                pnl_stdev=pnl_stdev,
                 best_trade=max(pnls),
                 worst_trade=min(pnls),
                 max_drawdown=_max_drawdown(pnls),
+                avg_risk_money=avg_risk_money,
                 var_month=var_month,
             )
         )
     return summaries
+
+
+def cumulative_pnl_by_asset(asset_stats: list[AssetMonthStats], months: list[str]) -> dict[str, dict[str, float]]:
+    """Running total of P/L per symbol across `months`, in order. A month with no trades
+    for a symbol contributes 0.0, which naturally carries the prior running total forward
+    rather than needing separate "was this month blank" bookkeeping.
+    """
+    symbols = sorted({a.symbol for a in asset_stats})
+    pnl_by_key = {(a.month, a.symbol): a.pnl for a in asset_stats}
+
+    result: dict[str, dict[str, float]] = {}
+    for symbol in symbols:
+        running = 0.0
+        per_month: dict[str, float] = {}
+        for month in months:
+            running += pnl_by_key.get((month, symbol), 0.0)
+            per_month[month] = running
+        result[symbol] = per_month
+    return result
 
 
 def overall_summary(trades: list[Trade]) -> OverallSummary | None:

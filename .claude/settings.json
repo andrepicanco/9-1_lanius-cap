@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "PowerShell(powershell -NoProfile -File \"C:\\\\Users\\\\ANDR~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--claude-lanius\\\\9db9c022-6021-484b-a22d-12cba210c0a9\\\\scratchpad\\\\parse_log.ps1\")",
+      "Bash(awk -F',' 'NR>1{print $2}' trades.csv)",
+      "Bash(powershell -NoProfile -Command ' *)",
+      "PowerShell(powershell -NoProfile -File \"C:\\\\Users\\\\ANDR~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--claude-lanius\\\\9db9c022-6021-484b-a22d-12cba210c0a9\\\\scratchpad\\\\aggregate.ps1\")"
     ]
   }
 }

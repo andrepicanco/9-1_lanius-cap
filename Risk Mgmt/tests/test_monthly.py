@@ -4,16 +4,16 @@ import pandas as pd
 import pytest
 
 from risk_mgmt.logsource import Trade
-from risk_mgmt.monthly import asset_month_stats, month_summaries, overall_summary
+from risk_mgmt.monthly import asset_month_stats, cumulative_pnl_by_asset, month_summaries, overall_summary
 from risk_mgmt.var import daily_pnl_series
 
 
-def _trade(symbol: str, exit_day: dt.datetime, pnl: float) -> Trade:
+def _trade(symbol: str, exit_day: dt.datetime, pnl: float, risk: float | None = None) -> Trade:
     entry = exit_day - dt.timedelta(hours=4)
     return Trade(
         symbol=symbol, direction="buy", entry_time=entry, entry_price=100.0,
         exit_time=exit_day, exit_price=100.0 + pnl, exit_reason="tp",
-        lots=1.0, pnl_money=pnl, r_multiple=pnl / 10.0,
+        lots=1.0, pnl_money=pnl, r_multiple=pnl / 10.0, risk_money=risk,
     )
 
 
@@ -103,6 +103,55 @@ def test_month_summaries_var_is_populated_with_enough_daily_history():
 
 def test_month_summaries_empty_when_no_trades():
     assert month_summaries([], pd.Series(dtype=float), confidence=0.95) == []
+
+
+def test_month_summaries_pnl_stdev_matches_sample_stdev():
+    trades = [_trade("US500", JAN(2), 100.0), _trade("US500", JAN(5), -40.0), _trade("DE40", JAN(10), 20.0)]
+    daily_pnl = daily_pnl_series(trades)
+
+    summary = month_summaries(trades, daily_pnl, confidence=0.95)[0]
+    assert summary.pnl_stdev == pytest.approx(pd.Series([100.0, -40.0, 20.0]).std(ddof=1))
+
+
+def test_month_summaries_pnl_stdev_is_none_with_a_single_trade():
+    trades = [_trade("US500", JAN(2), 50.0)]
+    daily_pnl = daily_pnl_series(trades)
+
+    summary = month_summaries(trades, daily_pnl, confidence=0.95)[0]
+    assert summary.pnl_stdev is None
+
+
+def test_month_summaries_avg_risk_money_averages_only_the_known_values():
+    trades = [
+        _trade("US500", JAN(2), 100.0, risk=200.0),
+        _trade("US500", JAN(5), -40.0, risk=None),  # e.g. a live-mode trade, unknown risk
+        _trade("DE40", JAN(10), 20.0, risk=100.0),
+    ]
+    daily_pnl = daily_pnl_series(trades)
+
+    summary = month_summaries(trades, daily_pnl, confidence=0.95)[0]
+    assert summary.avg_risk_money == pytest.approx(150.0)  # (200 + 100) / 2, the None excluded
+
+
+def test_month_summaries_avg_risk_money_is_none_when_all_unknown():
+    trades = [_trade("US500", JAN(2), 100.0, risk=None), _trade("US500", JAN(5), -40.0, risk=None)]
+    daily_pnl = daily_pnl_series(trades)
+
+    summary = month_summaries(trades, daily_pnl, confidence=0.95)[0]
+    assert summary.avg_risk_money is None
+
+
+def test_cumulative_pnl_by_asset_carries_forward_through_untraded_months():
+    asset_stats = asset_month_stats(_sample_trades())
+    cumulative = cumulative_pnl_by_asset(asset_stats, months=["2026-01", "2026-02"])
+
+    # DE40 only traded in January (pnl 20.0) - February should carry that total forward.
+    assert cumulative["DE40"]["2026-01"] == pytest.approx(20.0)
+    assert cumulative["DE40"]["2026-02"] == pytest.approx(20.0)
+
+    # US500: Jan 100 - 40 = 60, then +30 in Feb -> running total 90.
+    assert cumulative["US500"]["2026-01"] == pytest.approx(60.0)
+    assert cumulative["US500"]["2026-02"] == pytest.approx(90.0)
 
 
 def test_overall_summary():

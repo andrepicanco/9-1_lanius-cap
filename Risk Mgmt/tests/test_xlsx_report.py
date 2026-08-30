@@ -14,9 +14,11 @@ def _sample_data():
     ]
     summaries = [
         MonthSummary(month="2026-01", trades=3, win_rate=2 / 3, total_pnl=80.0, avg_pnl=80.0 / 3,
-                     best_trade=100.0, worst_trade=-40.0, max_drawdown=40.0, var_month=55.2),
+                     pnl_stdev=74.86, best_trade=100.0, worst_trade=-40.0, max_drawdown=40.0,
+                     avg_risk_money=50.0, var_month=55.2),
         MonthSummary(month="2026-02", trades=1, win_rate=1.0, total_pnl=30.0, avg_pnl=30.0,
-                     best_trade=30.0, worst_trade=30.0, max_drawdown=0.0, var_month=None),
+                     pnl_stdev=None, best_trade=30.0, worst_trade=30.0, max_drawdown=0.0,
+                     avg_risk_money=None, var_month=None),
     ]
     return asset_stats, summaries
 
@@ -37,12 +39,12 @@ def test_summary_table_has_months_as_columns_and_metrics_as_rows(tmp_path: Path)
 
     wb = load_workbook(output_path)
     ws = wb["Monthly Report"]
-    rows = _cell_values(ws, 10, 3)
+    rows = _cell_values(ws, 12, 3)
 
     assert rows[0][:3] == ["Monthly summary", "2026-01", "2026-02"]
-    labels = [row[0] for row in rows[:9]]
-    for expected in ["Trades", "Win rate", "Total P/L", "Avg P/L/trade", "Best trade",
-                      "Worst trade", "Max drawdown", "VaR (95%)"]:
+    labels = [row[0] for row in rows[:11]]
+    for expected in ["Trades", "Win rate", "Total P/L", "Avg P/L/trade", "P/L Std Dev",
+                      "Best trade", "Worst trade", "Max drawdown", "Avg risk at entry", "VaR (95%)"]:
         assert expected in labels
 
 
@@ -51,11 +53,13 @@ def test_summary_table_values_align_with_the_right_month_column(tmp_path: Path):
 
     wb = load_workbook(output_path)
     ws = wb["Monthly Report"]
-    rows = _cell_values(ws, 10, 3)
+    rows = _cell_values(ws, 12, 3)
     by_label = {row[0]: row for row in rows}
 
     assert by_label["Trades"][1:3] == [3, 1]
     assert by_label["Total P/L"][1:3] == [80.0, 30.0]
+    assert by_label["P/L Std Dev"][1:3] == [74.86, "n/a"]  # February has a single trade
+    assert by_label["Avg risk at entry"][1:3] == [50.0, "n/a"]
     assert by_label["VaR (95%)"][1:3] == [55.2, "n/a"]  # February has no VaR (single trade)
 
 
@@ -95,6 +99,25 @@ def test_missing_symbol_for_a_month_is_blank_not_zero(tmp_path: Path):
     feb_pnl_row = next(row for row in all_rows if row[0] == "2026-02" and row[1] == "P/L ($)")
     assert feb_pnl_row[2] is None  # DE40 column
     assert feb_pnl_row[3] == 30.0  # US500 column
+
+
+def test_cumulative_by_asset_table_has_symbols_as_rows_and_months_as_columns(tmp_path: Path):
+    output_path = _write(tmp_path)
+
+    wb = load_workbook(output_path)
+    ws = wb["Monthly Report"]
+    all_rows = _cell_values(ws, ws.max_row, 3)
+
+    header_row = next(row for row in all_rows if row[0] == "Cumulative P/L by asset")
+    assert header_row[1:3] == ["2026-01", "2026-02"]
+
+    # DE40 only traded in January (pnl 20.0) - February carries that total forward.
+    de40_row = next(row for row in all_rows if row[0] == "DE40")
+    assert de40_row[1:3] == [20.0, 20.0]
+
+    # US500: Jan 60.0 total, then +30.0 in Feb -> running total 90.0
+    us500_row = next(row for row in all_rows if row[0] == "US500")
+    assert us500_row[1:3] == [60.0, 90.0]
 
 
 def test_creates_output_directory_if_missing(tmp_path: Path):

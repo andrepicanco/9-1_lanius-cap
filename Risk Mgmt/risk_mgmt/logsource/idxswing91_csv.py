@@ -28,6 +28,11 @@ class IdxSwing91CsvSource:
         for path in self._paths:
             df = pd.read_csv(path, parse_dates=["entry_time", "exit_time"])
             for row in df.itertuples(index=False):
+                # r_multiple and pnl_money are both linear in profit_points, so their
+                # ratio recovers the $ risk distance (risk_distance * tick_value/tick_size
+                # * lots) without needing the raw SL price this CSV doesn't carry. Only
+                # undefined when r_multiple is exactly 0 (risk_distance was 0, or unset).
+                risk_money = row.pnl_money / row.r_multiple if row.r_multiple else None
                 trades.append(
                     Trade(
                         symbol=row.symbol,
@@ -40,6 +45,7 @@ class IdxSwing91CsvSource:
                         lots=row.lots,
                         pnl_money=row.pnl_money,
                         r_multiple=row.r_multiple,
+                        risk_money=risk_money,
                     )
                 )
         return trades

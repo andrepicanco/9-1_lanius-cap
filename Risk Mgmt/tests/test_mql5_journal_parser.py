@@ -46,6 +46,17 @@ def test_r_multiple_uses_the_original_sl_from_the_placement_line_not_the_trailed
     assert trade.r_multiple == pytest.approx(profit_points / risk_distance)
 
 
+def test_risk_money_uses_the_original_sl_priced_via_the_symbol_spec():
+    # Same original SL (17657.00) as the r_multiple test above, but priced to $ via the
+    # SymbolSpec instead of expressed as a multiple of the realized profit.
+    trade = MQL5JournalSource.from_directory(FIXTURES, SPEC, pattern="sample_journal.log").load_trades()[0]
+
+    original_sl = 17657.00
+    risk_distance = abs(trade.entry_price - original_sl)
+    expected_risk_money = (risk_distance / SPEC["ES35"].tick_size) * SPEC["ES35"].tick_value * trade.lots
+    assert trade.risk_money == pytest.approx(expected_risk_money)
+
+
 def test_expired_and_still_pending_orders_produce_no_trade():
     # The fixture also has tickets #2, #3, #6 (expired, never filled) and #7 (still
     # pending at end of log) - none of these should show up as trades.

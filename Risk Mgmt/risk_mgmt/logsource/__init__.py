@@ -18,6 +18,7 @@ class Trade:
     lots: float
     pnl_money: float
     r_multiple: float
+    risk_money: float | None = None  # $ risked at entry (SL distance priced in); None when unrecoverable
 
 
 class LogSource(Protocol):

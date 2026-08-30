@@ -14,12 +14,11 @@
 # broker).
 
 symbols:
-  - US500
-  - AUS200
-  - USTEC
-  - DE40
-  - ES35
-  - IT40
+  - SP500
+  - ASXAUD
+  - NAS100
+  - DAX40
+  - IBXEUR
   - XAUUSD
   - BTCUSD
 

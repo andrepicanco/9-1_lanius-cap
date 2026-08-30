@@ -146,6 +146,7 @@ def _price_trade(raw: dict, spec: SymbolSpec) -> Trade:
     original_sl = raw["original_sl"]
     risk_distance = abs(entry_price - original_sl) if original_sl is not None else 0.0
     r_multiple = profit_points / risk_distance if risk_distance > 0 else 0.0
+    risk_money = (risk_distance / spec.tick_size) * spec.tick_value * lots if original_sl is not None else None
 
     return Trade(
         symbol=raw["symbol"],
@@ -158,6 +159,7 @@ def _price_trade(raw: dict, spec: SymbolSpec) -> Trade:
         lots=lots,
         pnl_money=pnl_money,
         r_multiple=r_multiple,
+        risk_money=risk_money,
     )
 
 
